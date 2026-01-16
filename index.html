@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>文档校对工具 - A/B 差异对比</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7fb;
+        --panel: #ffffff;
+        --border: #d9dde7;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --danger: #ef4444;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui,
+          -apple-system, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+      }
+
+      header {
+        padding: 20px 24px 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+
+      header h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      main {
+        padding: 20px 24px 28px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 16px;
+        align-items: center;
+      }
+
+      .toolbar button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .toolbar button.secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+
+      .toolbar .status {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .panes {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .pane {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .pane h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      .pane label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .pane input[type="file"] {
+        width: 100%;
+      }
+
+      .pane textarea {
+        width: 100%;
+        min-height: 160px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        resize: vertical;
+        font-family: inherit;
+      }
+
+      .preview {
+        min-height: 200px;
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fafafa;
+        white-space: pre-wrap;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+      }
+
+      .preview.empty {
+        color: var(--muted);
+      }
+
+      .diff {
+        border: 2px solid var(--danger);
+        border-radius: 6px;
+        padding: 0 4px;
+        margin: 0 1px;
+        position: relative;
+        background: rgba(239, 68, 68, 0.08);
+      }
+
+      .diff::before {
+        content: attr(data-index);
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        background: var(--danger);
+        color: white;
+        font-size: 11px;
+        padding: 0 5px;
+        border-radius: 999px;
+        line-height: 18px;
+        height: 18px;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      .diff.empty {
+        color: var(--muted);
+        border-style: dashed;
+      }
+
+      .report {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+
+      .report h3 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+
+      .report ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 10px;
+      }
+
+      .report li {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        background: #fff;
+      }
+
+      .report li:hover {
+        border-color: var(--accent);
+      }
+
+      .report .meta {
+        display: flex;
+        gap: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .report .content {
+        margin-top: 6px;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 1024px) {
+        .panes {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>网页版文档校对工具</h1>
+      <p>对比 A/B 文档文案与符号差异，自动编号标注并生成报告。</p>
+    </header>
+
+    <main>
+      <section class="toolbar">
+        <button id="compareBtn">开始对比</button>
+        <button id="clearBtn" class="secondary">清空</button>
+        <div class="status" id="status">等待导入 A/B 文档或粘贴内容。</div>
+      </section>
+
+      <section class="panes">
+        <div class="pane">
+          <h2>A 文档</h2>
+          <label for="fileA">支持 txt / md / csv / json / html / docx / pdf 等</label>
+          <input id="fileA" type="file" />
+          <label for="textA">或直接粘贴文档内容</label>
+          <textarea id="textA" placeholder="粘贴或编辑 A 文档内容"></textarea>
+          <div id="previewA" class="preview empty">预览将在此显示差异标注。</div>
+        </div>
+
+        <div class="pane">
+          <h2>B 文档</h2>
+          <label for="fileB">支持 txt / md / csv / json / html / docx / pdf 等</label>
+          <input id="fileB" type="file" />
+          <label for="textB">或直接粘贴文档内容</label>
+          <textarea id="textB" placeholder="粘贴或编辑 B 文档内容"></textarea>
+          <div id="previewB" class="preview empty">预览将在此显示差异标注。</div>
+        </div>
+      </section>
+
+      <section class="report">
+        <h3>差异报告</h3>
+        <div class="hint">按序号生成，可点击定位到 A/B 预览处。</div>
+        <ul id="reportList"></ul>
+      </section>
+    </main>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/mammoth/mammoth.browser.min.js"
+      onerror="this.onerror=null;this.src='./vendor/mammoth.browser.min.js';"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"
+      onerror="this.onerror=null;this.src='./vendor/pdf.min.js';"
+    ></script>
+    <script>
+      const fileAInput = document.getElementById("fileA");
+      const fileBInput = document.getElementById("fileB");
+      const textA = document.getElementById("textA");
+      const textB = document.getElementById("textB");
+      const previewA = document.getElementById("previewA");
+      const previewB = document.getElementById("previewB");
+      const reportList = document.getElementById("reportList");
+      const statusEl = document.getElementById("status");
+      const compareBtn = document.getElementById("compareBtn");
+      const clearBtn = document.getElementById("clearBtn");
+
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "./vendor/pdf.worker.min.js";
+      }
+
+      function setStatus(message) {
+        statusEl.textContent = message;
+      }
+
+      function escapeHtml(text) {
+        return text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function tokenize(text) {
+        if (!text) return [];
+        const tokens = text.match(/[\p{L}\p{N}]+|[^\p{L}\p{N}\s]|\s+/gu);
+        return tokens || [];
+      }
+
+      function getFileExtension(name) {
+        const parts = name.split(".");
+        return parts.length > 1 ? parts.pop().toLowerCase() : "";
+      }
+
+      function readAsText(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result || "");
+          reader.onerror = () => reject(reader.error);
+          reader.readAsText(file);
+        });
+      }
+
+      function readAsArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsArrayBuffer(file);
+        });
+      }
+
+      async function extractTextFromPdf(buffer) {
+        const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+        let output = "";
+        for (let i = 1; i <= pdf.numPages; i += 1) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items.map((item) => item.str).join(" ");
+          output += pageText + "\n";
+        }
+        return output;
+      }
+
+      async function extractTextFromFile(file) {
+        const ext = getFileExtension(file.name || "");
+        if (ext === "docx") {
+          const buffer = await readAsArrayBuffer(file);
+          const result = await window.mammoth.extractRawText({ arrayBuffer: buffer });
+          return result.value || "";
+        }
+        if (ext === "pdf" && window.pdfjsLib) {
+          const buffer = await readAsArrayBuffer(file);
+          return extractTextFromPdf(buffer);
+        }
+        return readAsText(file);
+      }
+
+      fileAInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        setStatus("正在解析 A 文档...");
+        try {
+          textA.value = await extractTextFromFile(file);
+          setStatus("A 文档已加载。");
+        } catch (error) {
+          setStatus("A 文档解析失败，请尝试复制粘贴文本内容。");
+        }
+      });
+
+      fileBInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        setStatus("正在解析 B 文档...");
+        try {
+          textB.value = await extractTextFromFile(file);
+          setStatus("B 文档已加载。");
+        } catch (error) {
+          setStatus("B 文档解析失败，请尝试复制粘贴文本内容。");
+        }
+      });
+
+      clearBtn.addEventListener("click", () => {
+        textA.value = "";
+        textB.value = "";
+        previewA.textContent = "预览将在此显示差异标注。";
+        previewB.textContent = "预览将在此显示差异标注。";
+        previewA.classList.add("empty");
+        previewB.classList.add("empty");
+        reportList.innerHTML = "";
+        setStatus("已清空内容。");
+      });
+
+      function myersDiff(aTokens, bTokens) {
+        const n = aTokens.length;
+        const m = bTokens.length;
+        const max = n + m;
+        const v = new Map();
+        v.set(1, 0);
+        const trace = [];
+
+        for (let d = 0; d <= max; d += 1) {
+          const current = new Map();
+          for (let k = -d; k <= d; k += 2) {
+            let x;
+            if (k === -d || (k !== d && v.get(k - 1) < v.get(k + 1))) {
+              x = v.get(k + 1);
+            } else {
+              x = v.get(k - 1) + 1;
+            }
+            let y = x - k;
+            while (x < n && y < m && aTokens[x] === bTokens[y]) {
+              x += 1;
+              y += 1;
+            }
+            current.set(k, x);
+            if (x >= n && y >= m) {
+              trace.push(current);
+              return buildDiffFromTrace(trace, aTokens, bTokens);
+            }
+          }
+          trace.push(current);
+          v.clear();
+          for (const [key, value] of current.entries()) {
+            v.set(key, value);
+          }
+        }
+        return [];
+      }
+
+      function buildDiffFromTrace(trace, aTokens, bTokens) {
+        let x = aTokens.length;
+        let y = bTokens.length;
+        const ops = [];
+
+        for (let d = trace.length - 1; d >= 0; d -= 1) {
+          const v = trace[d];
+          const k = x - y;
+          let prevK;
+          if (k === -d || (k !== d && v.get(k - 1) < v.get(k + 1))) {
+            prevK = k + 1;
+          } else {
+            prevK = k - 1;
+          }
+          const prevX = v.get(prevK);
+          const prevY = prevX - prevK;
+
+          while (x > prevX && y > prevY) {
+            ops.push({ type: "equal", value: aTokens[x - 1] });
+            x -= 1;
+            y -= 1;
+          }
+          if (d === 0) break;
+          if (x === prevX) {
+            ops.push({ type: "insert", value: bTokens[y - 1] });
+            y -= 1;
+          } else {
+            ops.push({ type: "delete", value: aTokens[x - 1] });
+            x -= 1;
+          }
+        }
+
+        return ops.reverse();
+      }
+
+      function buildDiffBlocks(ops) {
+        const blocks = [];
+        let current = null;
+
+        ops.forEach((op) => {
+          if (op.type === "equal") {
+            if (current) {
+              blocks.push(current);
+              current = null;
+            }
+            blocks.push({ type: "equal", value: op.value });
+            return;
+          }
+          if (!current) {
+            current = { type: "diff", deletes: [], inserts: [] };
+          }
+          if (op.type === "delete") current.deletes.push(op.value);
+          if (op.type === "insert") current.inserts.push(op.value);
+        });
+
+        if (current) blocks.push(current);
+        return blocks;
+      }
+
+      function renderPreview(blocks, side) {
+        let diffIndex = 1;
+        const html = [];
+        const reportItems = [];
+
+        blocks.forEach((block) => {
+          if (block.type === "equal") {
+            html.push(escapeHtml(block.value));
+            return;
+          }
+          const index = diffIndex++;
+          const aText = block.deletes.join("");
+          const bText = block.inserts.join("");
+          const sideText = side === "A" ? aText : bText;
+          const empty = sideText.length === 0;
+          const content = empty ? "（空）" : sideText;
+          const className = empty ? "diff empty" : "diff";
+          html.push(
+            `<span class="${className}" data-index="${index}">${escapeHtml(
+              content
+            )}</span>`
+          );
+
+          reportItems.push({
+            index,
+            aText,
+            bText,
+          });
+        });
+
+        return { html: html.join(""), reportItems };
+      }
+
+      function renderReport(reportItems) {
+        reportList.innerHTML = "";
+        if (reportItems.length === 0) {
+          reportList.innerHTML =
+            "<li>未检测到差异，A/B 文档内容一致。</li>";
+          return;
+        }
+        reportItems.forEach((item) => {
+          const type =
+            item.aText && item.bText
+              ? "替换"
+              : item.aText
+              ? "B 缺失"
+              : "A 缺失";
+          const li = document.createElement("li");
+          li.dataset.index = item.index;
+          li.innerHTML = `
+            <div class="meta">
+              <span>序号 ${item.index}</span>
+              <span>${type}</span>
+            </div>
+            <div class="content">A：${escapeHtml(item.aText || "（空）")}
+B：${escapeHtml(item.bText || "（空）")}</div>
+          `;
+          li.addEventListener("click", () => {
+            const targetA = previewA.querySelector(
+              `.diff[data-index="${item.index}"]`
+            );
+            const targetB = previewB.querySelector(
+              `.diff[data-index="${item.index}"]`
+            );
+            if (targetA) targetA.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (targetB) targetB.scrollIntoView({ behavior: "smooth", block: "center" });
+          });
+          reportList.appendChild(li);
+        });
+      }
+
+      compareBtn.addEventListener("click", () => {
+        const aContent = textA.value || "";
+        const bContent = textB.value || "";
+        if (!aContent && !bContent) {
+          setStatus("请导入或粘贴 A/B 文档内容后再对比。");
+          return;
+        }
+        setStatus("正在计算差异...");
+        const aTokens = tokenize(aContent);
+        const bTokens = tokenize(bContent);
+        const ops = myersDiff(aTokens, bTokens);
+        const blocks = buildDiffBlocks(ops);
+
+        const renderA = renderPreview(blocks, "A");
+        const renderB = renderPreview(blocks, "B");
+
+        previewA.innerHTML = renderA.html || "（空）";
+        previewB.innerHTML = renderB.html || "（空）";
+        previewA.classList.toggle("empty", !renderA.html);
+        previewB.classList.toggle("empty", !renderB.html);
+
+        renderReport(renderA.reportItems);
+        setStatus(`对比完成，共发现 ${renderA.reportItems.length} 处差异。`);
+      });
+    </script>
+  </body>
+  </html>
