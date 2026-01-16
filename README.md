@@ -33,9 +33,9 @@
 
 ### 一键部署到 Vercel
 
-将下方链接中的 `YOUR_GITHUB_REPO_URL` 替换为你的仓库地址，即可生成一键部署按钮：
+一键部署按钮（已替换为你的仓库地址）：
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=YOUR_GITHUB_REPO_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Rain765/proo.git)
 
 ### Netlify
 
