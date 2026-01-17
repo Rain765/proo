@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>文档校对工具 - 预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+    <div class="max-w-7xl mx-auto">
+      <header class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">文档校对工具</h1>
+        <p class="text-gray-600">
+          智能对比两个文档的差异，自动标注并生成详细报告
+        </p>
+      </header>
+
+      <section class="space-y-6">
+        <div class="flex gap-2">
+          <button
+            id="tab-upload"
+            class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium"
+          >
+            上传文档
+          </button>
+          <button
+            id="tab-compare"
+            class="px-4 py-2 rounded-lg bg-white text-gray-700 border border-gray-200 font-medium"
+          >
+            对比分析
+          </button>
+        </div>
+
+        <div id="panel-upload" class="space-y-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow-sm p-6 space-y-4">
+              <div class="text-sm text-gray-500">文档 A（原始版本）</div>
+              <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
+                <div class="text-gray-600 mb-3">拖拽或点击上传</div>
+                <input
+                  id="file-input-a"
+                  type="file"
+                  accept=".txt,.md,.pdf,.docx,.csv,.json"
+                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+              <div id="status-a" class="text-xs text-gray-500">
+                尚未选择文件
+              </div>
+              <div id="preview-a" class="text-xs text-gray-400 italic">
+                解析内容预览将显示在这里
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-6 space-y-4">
+              <div class="text-sm text-gray-500">文档 B（对比版本）</div>
+              <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
+                <div class="text-gray-600 mb-3">拖拽或点击上传</div>
+                <input
+                  id="file-input-b"
+                  type="file"
+                  accept=".txt,.md,.pdf,.docx,.csv,.json"
+                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+              <div id="status-b" class="text-xs text-gray-500">
+                尚未选择文件
+              </div>
+              <div id="preview-b" class="text-xs text-gray-400 italic">
+                解析内容预览将显示在这里
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-center">
+            <button
+              id="start-compare"
+              class="px-8 py-3 bg-blue-600 text-white rounded-lg transition-colors font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+              disabled
+            >
+              开始对比分析
+            </button>
+          </div>
+
+          <div class="mt-8 p-6 bg-white rounded-lg shadow-sm">
+            <h3 class="font-semibold mb-4 text-lg">功能特点</h3>
+            <div class="grid md:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold">
+                  1
+                </div>
+                <h4 class="font-medium">智能对比</h4>
+                <p class="text-sm text-gray-600">
+                  使用先进的文本对比算法，精准识别文档差异
+                </p>
+              </div>
+              <div class="space-y-2">
+                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600 font-bold">
+                  2
+                </div>
+                <h4 class="font-medium">可视化标注</h4>
+                <p class="text-sm text-gray-600">
+                  在文档上直接标注差异位置，一目了然
+                </p>
+              </div>
+              <div class="space-y-2">
+                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 font-bold">
+                  3
+                </div>
+                <h4 class="font-medium">详细报告</h4>
+                <p class="text-sm text-gray-600">
+                  自动生成结构化差异报告，支持导出
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="panel-compare" class="hidden space-y-6">
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">对比概览</h3>
+                <p id="compare-title" class="text-sm text-gray-500">
+                  文档 A：— ｜ 文档 B：—
+                </p>
+              </div>
+              <div class="flex items-center gap-3 text-sm">
+                <div class="flex items-center gap-2">
+                  <span id="count-add" class="px-2 py-1 rounded bg-green-100 text-green-700">新增 0</span>
+                  <span id="count-mod" class="px-2 py-1 rounded bg-yellow-100 text-yellow-700">修改 0</span>
+                  <span id="count-del" class="px-2 py-1 rounded bg-red-100 text-red-700">删除 0</span>
+                </div>
+                <button
+                  id="export-report"
+                  class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+                >
+                  导出 PDF 报告
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow-sm p-6 space-y-4">
+              <div class="text-sm font-medium text-gray-700">文档 A（原始版本）</div>
+              <div
+                id="doc-a"
+                class="border border-gray-200 rounded-lg p-4 text-sm text-gray-700 space-y-2 max-h-[420px] overflow-auto"
+              >
+                <p class="text-gray-400">请先上传并解析文档 A</p>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-6 space-y-4">
+              <div class="text-sm font-medium text-gray-700">文档 B（对比版本）</div>
+              <div
+                id="doc-b"
+                class="border border-gray-200 rounded-lg p-4 text-sm text-gray-700 space-y-2 max-h-[420px] overflow-auto"
+              >
+                <p class="text-gray-400">请先上传并解析文档 B</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between gap-4 mb-4">
+              <h3 class="font-semibold text-lg">差异报告</h3>
+              <button
+                id="export-summary"
+                class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                导出 PDF 摘要
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm text-gray-700">
+                <thead class="text-xs uppercase text-gray-500 bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-2 text-left">类型</th>
+                    <th class="px-3 py-2 text-left">位置</th>
+                    <th class="px-3 py-2 text-left">原文</th>
+                    <th class="px-3 py-2 text-left">新文</th>
+                    <th class="px-3 py-2 text-left">严重度</th>
+                    <th class="px-3 py-2 text-left">定位</th>
+                  </tr>
+                </thead>
+                <tbody id="diff-table-body" class="divide-y divide-gray-100">
+                  <tr>
+                    <td class="px-3 py-2 text-gray-400" colspan="6">
+                      暂无对比结果，请先上传文档并开始对比
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const tabUpload = document.getElementById('tab-upload');
+      const tabCompare = document.getElementById('tab-compare');
+      const panelUpload = document.getElementById('panel-upload');
+      const panelCompare = document.getElementById('panel-compare');
+      const fileInputA = document.getElementById('file-input-a');
+      const fileInputB = document.getElementById('file-input-b');
+      const statusA = document.getElementById('status-a');
+      const statusB = document.getElementById('status-b');
+      const previewA = document.getElementById('preview-a');
+      const previewB = document.getElementById('preview-b');
+      const startCompareButton = document.getElementById('start-compare');
+      const exportReportButton = document.getElementById('export-report');
+      const exportSummaryButton = document.getElementById('export-summary');
+      const compareTitle = document.getElementById('compare-title');
+      const countAdd = document.getElementById('count-add');
+      const countMod = document.getElementById('count-mod');
+      const countDel = document.getElementById('count-del');
+      const docA = document.getElementById('doc-a');
+      const docB = document.getElementById('doc-b');
+      const diffTableBody = document.getElementById('diff-table-body');
+
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      }
+
+      const state = {
+        fileA: null,
+        fileB: null,
+        textA: '',
+        textB: '',
+        linesA: [],
+        linesB: [],
+        reportData: [],
+      };
+
+      const setActiveTab = (tab) => {
+        if (tab === 'upload') {
+          tabUpload.className =
+            'px-4 py-2 rounded-lg bg-blue-600 text-white font-medium';
+          tabCompare.className =
+            'px-4 py-2 rounded-lg bg-white text-gray-700 border border-gray-200 font-medium';
+          panelUpload.classList.remove('hidden');
+          panelCompare.classList.add('hidden');
+          return;
+        }
+
+        tabCompare.className =
+          'px-4 py-2 rounded-lg bg-blue-600 text-white font-medium';
+        tabUpload.className =
+          'px-4 py-2 rounded-lg bg-white text-gray-700 border border-gray-200 font-medium';
+        panelUpload.classList.add('hidden');
+        panelCompare.classList.remove('hidden');
+      };
+
+      const updateStatus = (element, message, tone = 'text-gray-500') => {
+        element.className = `text-xs ${tone}`;
+        element.textContent = message;
+      };
+
+      const updatePreview = (element, text) => {
+        if (!text) {
+          element.className = 'text-xs text-gray-400 italic';
+          element.textContent = '解析内容预览将显示在这里';
+          return;
+        }
+        const lines = text
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .slice(0, 3);
+        element.className = 'text-xs text-gray-600';
+        element.textContent = lines.join(' / ') + (lines.length >= 3 ? '…' : '');
+      };
+
+      const updateStartButtonState = () => {
+        const ready = state.linesA.length > 0 && state.linesB.length > 0;
+        startCompareButton.disabled = !ready;
+      };
+
+      const readAsText = (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result || '');
+          reader.onerror = reject;
+          reader.readAsText(file, 'utf-8');
+        });
+
+      const readAsArrayBuffer = (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsArrayBuffer(file);
+        });
+
+      const parsePdf = async (file) => {
+        const data = await readAsArrayBuffer(file);
+        const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+        const pages = [];
+        for (let i = 1; i <= pdf.numPages; i += 1) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          pages.push(content.items.map((item) => item.str).join(' '));
+        }
+        return pages.join('\n');
+      };
+
+      const parseDocx = async (file) => {
+        const data = await readAsArrayBuffer(file);
+        const result = await window.mammoth.extractRawText({ arrayBuffer: data });
+        return result.value || '';
+      };
+
+      const parseFile = async (file) => {
+        const extension = file.name.split('.').pop()?.toLowerCase() || '';
+        if (extension === 'pdf') {
+          return parsePdf(file);
+        }
+        if (extension === 'docx') {
+          return parseDocx(file);
+        }
+        return readAsText(file);
+      };
+
+      const normalizeLines = (text) =>
+        text
+          .replace(/\r\n/g, '\n')
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+      const diffLines = (linesA, linesB) => {
+        const n = linesA.length;
+        const m = linesB.length;
+        const dp = Array.from({ length: n + 1 }, () =>
+          Array(m + 1).fill(0)
+        );
+
+        for (let i = n - 1; i >= 0; i -= 1) {
+          for (let j = m - 1; j >= 0; j -= 1) {
+            if (linesA[i] === linesB[j]) {
+              dp[i][j] = dp[i + 1][j + 1] + 1;
+            } else {
+              dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+            }
+          }
+        }
+
+        const ops = [];
+        let i = 0;
+        let j = 0;
+        while (i < n && j < m) {
+          if (linesA[i] === linesB[j]) {
+            ops.push({ type: 'equal', aIndex: i, bIndex: j, text: linesA[i] });
+            i += 1;
+            j += 1;
+          } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+            ops.push({ type: 'remove', aIndex: i, text: linesA[i] });
+            i += 1;
+          } else {
+            ops.push({ type: 'add', bIndex: j, text: linesB[j] });
+            j += 1;
+          }
+        }
+        while (i < n) {
+          ops.push({ type: 'remove', aIndex: i, text: linesA[i] });
+          i += 1;
+        }
+        while (j < m) {
+          ops.push({ type: 'add', bIndex: j, text: linesB[j] });
+          j += 1;
+        }
+        return ops;
+      };
+
+      const severityFromText = (text) => {
+        const len = text.length;
+        if (len >= 30) return '高';
+        if (len >= 15) return '中';
+        return '低';
+      };
+
+      const buildReportData = (ops) => {
+        const report = [];
+        for (let k = 0; k < ops.length; k += 1) {
+          const current = ops[k];
+          const next = ops[k + 1];
+          if (current.type === 'remove' && next?.type === 'add') {
+            report.push({
+              type: '修改',
+              location: `A 行 ${current.aIndex + 1} / B 行 ${next.bIndex + 1}`,
+              before: current.text,
+              after: next.text,
+              severity: severityFromText(current.text + next.text),
+              targetId: `b-line-${next.bIndex}`,
+              aIndex: current.aIndex,
+              bIndex: next.bIndex,
+            });
+            k += 1;
+            continue;
+          }
+          if (current.type === 'remove') {
+            report.push({
+              type: '删除',
+              location: `A 行 ${current.aIndex + 1}`,
+              before: current.text,
+              after: '—',
+              severity: severityFromText(current.text),
+              targetId: `a-line-${current.aIndex}`,
+              aIndex: current.aIndex,
+            });
+            continue;
+          }
+          if (current.type === 'add') {
+            report.push({
+              type: '新增',
+              location: `B 行 ${current.bIndex + 1}`,
+              before: '—',
+              after: current.text,
+              severity: severityFromText(current.text),
+              targetId: `b-line-${current.bIndex}`,
+              bIndex: current.bIndex,
+            });
+          }
+        }
+        return report;
+      };
+
+      const buildLineStatuses = (ops) => {
+        const statusA = Array(state.linesA.length).fill('equal');
+        const statusB = Array(state.linesB.length).fill('equal');
+        for (let k = 0; k < ops.length; k += 1) {
+          const current = ops[k];
+          const next = ops[k + 1];
+          if (current.type === 'remove' && next?.type === 'add') {
+            statusA[current.aIndex] = 'modify';
+            statusB[next.bIndex] = 'modify';
+            k += 1;
+            continue;
+          }
+          if (current.type === 'remove') {
+            statusA[current.aIndex] = 'delete';
+            continue;
+          }
+          if (current.type === 'add') {
+            statusB[current.bIndex] = 'add';
+          }
+        }
+        return { statusA, statusB };
+      };
+
+      const renderDocument = (container, lines, statuses, prefix) => {
+        if (!lines.length) {
+          container.innerHTML = '<p class="text-gray-400">暂无内容</p>';
+          return;
+        }
+        container.innerHTML = '';
+        lines.forEach((line, index) => {
+          const p = document.createElement('p');
+          p.id = `${prefix}-line-${index}`;
+          p.className = 'rounded px-2 py-1';
+          if (statuses[index] === 'add') {
+            p.className += ' bg-green-50 text-green-700';
+          }
+          if (statuses[index] === 'delete') {
+            p.className += ' bg-red-50 text-red-700';
+          }
+          if (statuses[index] === 'modify') {
+            p.className += ' bg-yellow-50 text-yellow-800';
+          }
+          const lineNumber = document.createElement('span');
+          lineNumber.className = 'text-xs text-gray-400 mr-2';
+          lineNumber.textContent = `#${index + 1}`;
+          const lineText = document.createElement('span');
+          lineText.textContent = line;
+          p.appendChild(lineNumber);
+          p.appendChild(lineText);
+          container.appendChild(p);
+        });
+      };
+
+      const renderReportTable = (reportData) => {
+        if (!reportData.length) {
+          diffTableBody.innerHTML = `
+            <tr>
+              <td class="px-3 py-2 text-gray-400" colspan="6">
+                暂无对比结果，请先上传文档并开始对比
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        const escapeHtml = (value) =>
+          String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        diffTableBody.innerHTML = reportData
+          .map((item) => {
+            const typeClass =
+              item.type === '新增'
+                ? 'bg-green-100 text-green-700'
+                : item.type === '删除'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-yellow-100 text-yellow-700';
+            return `
+              <tr>
+                <td class="px-3 py-2">
+                  <span class="px-2 py-1 rounded ${typeClass} text-xs">${item.type}</span>
+                </td>
+                <td class="px-3 py-2">${escapeHtml(item.location)}</td>
+                <td class="px-3 py-2 text-gray-500">${escapeHtml(item.before)}</td>
+                <td class="px-3 py-2 text-gray-900">${escapeHtml(item.after)}</td>
+                <td class="px-3 py-2">${escapeHtml(item.severity)}</td>
+                <td class="px-3 py-2">
+                  <button
+                    class="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50"
+                    data-target="${item.targetId || ''}"
+                  >
+                    定位
+                  </button>
+                </td>
+              </tr>
+            `;
+          })
+          .join('');
+      };
+
+      const renderComparison = () => {
+        const ops = diffLines(state.linesA, state.linesB);
+        const reportData = buildReportData(ops);
+        const { statusA: statusMapA, statusB: statusMapB } = buildLineStatuses(ops);
+        state.reportData = reportData;
+
+        compareTitle.textContent = `文档 A：${state.fileA?.name || '—'} ｜ 文档 B：${
+          state.fileB?.name || '—'
+        }`;
+        const addCount = reportData.filter((item) => item.type === '新增').length;
+        const modCount = reportData.filter((item) => item.type === '修改').length;
+        const delCount = reportData.filter((item) => item.type === '删除').length;
+        countAdd.textContent = `新增 ${addCount}`;
+        countMod.textContent = `修改 ${modCount}`;
+        countDel.textContent = `删除 ${delCount}`;
+
+        renderDocument(docA, state.linesA, statusMapA, 'a');
+        renderDocument(docB, state.linesB, statusMapB, 'b');
+        renderReportTable(reportData);
+      };
+
+      const scrollToTarget = (targetId) => {
+        if (!targetId) return;
+        const element = document.getElementById(targetId);
+        if (!element) return;
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+        }, 1200);
+      };
+
+      const exportReportPdf = () => {
+        if (!window.jspdf) {
+          alert('PDF 导出组件未加载，请刷新页面重试。');
+          return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+        let y = 48;
+        doc.setFontSize(16);
+        doc.text('文档差异报告', 40, y);
+        y += 20;
+        doc.setFontSize(10);
+        doc.text(`生成时间：${new Date().toLocaleString()}`, 40, y);
+        y += 18;
+        doc.text(
+          `文档 A：${state.fileA?.name || '—'}    文档 B：${state.fileB?.name || '—'}`,
+          40,
+          y
+        );
+        y += 24;
+
+        const data = state.reportData.length
+          ? state.reportData
+          : [
+              {
+                type: '—',
+                location: '—',
+                before: '—',
+                after: '—',
+                severity: '—',
+              },
+            ];
+
+        data.forEach((item, index) => {
+          const text = `${index + 1}. [${item.type}] ${item.location} | 原文: ${
+            item.before
+          } | 新文: ${item.after} | 严重度: ${item.severity}`;
+          const lines = doc.splitTextToSize(text, 520);
+          if (y + lines.length * 14 > 770) {
+            doc.addPage();
+            y = 40;
+          }
+          doc.text(lines, 40, y);
+          y += lines.length * 14 + 8;
+        });
+
+        doc.save('diff-report.pdf');
+      };
+
+      const exportSummaryPdf = () => {
+        if (!window.jspdf) {
+          alert('PDF 导出组件未加载，请刷新页面重试。');
+          return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+        let y = 48;
+        doc.setFontSize(16);
+        doc.text('差异摘要', 40, y);
+        y += 20;
+        doc.setFontSize(10);
+        doc.text(`生成时间：${new Date().toLocaleString()}`, 40, y);
+        y += 18;
+        doc.text(
+          `文档 A：${state.fileA?.name || '—'}    文档 B：${state.fileB?.name || '—'}`,
+          40,
+          y
+        );
+        y += 24;
+        const addCount = state.reportData.filter((item) => item.type === '新增').length;
+        const modCount = state.reportData.filter((item) => item.type === '修改').length;
+        const delCount = state.reportData.filter((item) => item.type === '删除').length;
+        doc.text(`新增 ${addCount} 项，修改 ${modCount} 项，删除 ${delCount} 项`, 40, y);
+        y += 24;
+
+        const summaryLines = state.reportData.map(
+          (item, index) =>
+            `${index + 1}. [${item.type}] ${item.location} | 严重度: ${item.severity}`
+        );
+        if (!summaryLines.length) {
+          summaryLines.push('暂无差异项');
+        }
+        summaryLines.forEach((line) => {
+          const lines = doc.splitTextToSize(line, 520);
+          if (y + lines.length * 14 > 770) {
+            doc.addPage();
+            y = 40;
+          }
+          doc.text(lines, 40, y);
+          y += lines.length * 14 + 6;
+        });
+        doc.save('diff-summary.pdf');
+      };
+
+      const handleFileUpload = async (file, side) => {
+        if (!file) return;
+        const statusElement = side === 'A' ? statusA : statusB;
+        const previewElement = side === 'A' ? previewA : previewB;
+        updateStatus(statusElement, `已选择：${file.name}，解析中…`, 'text-blue-600');
+        try {
+          const text = await parseFile(file);
+          if (side === 'A') {
+            state.fileA = file;
+            state.textA = text;
+            state.linesA = normalizeLines(text);
+          } else {
+            state.fileB = file;
+            state.textB = text;
+            state.linesB = normalizeLines(text);
+          }
+          updateStatus(
+            statusElement,
+            `解析成功：${file.name}（${state[side === 'A' ? 'linesA' : 'linesB'].length} 行）`,
+            'text-green-600'
+          );
+          updatePreview(previewElement, text);
+        } catch (error) {
+          updateStatus(
+            statusElement,
+            `解析失败：${file.name}，请检查文件格式`,
+            'text-red-600'
+          );
+        } finally {
+          updateStartButtonState();
+        }
+      };
+
+      tabUpload.addEventListener('click', () => setActiveTab('upload'));
+      tabCompare.addEventListener('click', () => setActiveTab('compare'));
+
+      fileInputA.addEventListener('change', (event) => {
+        handleFileUpload(event.target.files?.[0], 'A');
+      });
+      fileInputB.addEventListener('change', (event) => {
+        handleFileUpload(event.target.files?.[0], 'B');
+      });
+
+      startCompareButton.addEventListener('click', () => {
+        if (startCompareButton.disabled) return;
+        renderComparison();
+        setActiveTab('compare');
+      });
+
+      diffTableBody.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.dataset.target) {
+          scrollToTarget(target.dataset.target);
+        }
+      });
+
+      exportReportButton.addEventListener('click', exportReportPdf);
+      exportSummaryButton.addEventListener('click', exportSummaryPdf);
+    </script>
+  </body>
+</html>
